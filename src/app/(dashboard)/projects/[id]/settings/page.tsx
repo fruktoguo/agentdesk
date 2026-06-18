@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/dal";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { SettingsForm } from "./settings-form";
 import { DeleteForm } from "./delete-form";
@@ -10,11 +11,15 @@ export default async function SettingsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const project = await prisma.project.findUnique({
     where: { id },
-    select: { id: true, name: true, description: true, planning: true },
+    select: { id: true, name: true, description: true, planning: true, ownerId: true },
   });
   if (!project) notFound();
+  if (project.ownerId !== user.id) redirect(`/projects/${id}`);
 
   return (
     <div className="max-w-2xl space-y-6">

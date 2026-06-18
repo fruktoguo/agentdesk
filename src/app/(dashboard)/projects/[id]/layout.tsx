@@ -16,13 +16,19 @@ export default async function ProjectLayout({
 
   const project = await prisma.project.findUnique({
     where: { id },
-    select: { id: true, name: true },
+    select: { id: true, name: true, ownerId: true },
   });
   if (!project) notFound();
 
+  const isOwner = project.ownerId === user.id;
+
   return (
     <div>
-      <ProjectTabs projectId={project.id} projectName={project.name} />
+      <ProjectTabs
+        projectId={project.id}
+        projectName={project.name}
+        isOwner={isOwner}
+      />
       {children}
     </div>
   );

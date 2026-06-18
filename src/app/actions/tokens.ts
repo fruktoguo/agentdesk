@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/dal";
+import { requireProjectOwner } from "@/lib/dal";
 import { generateToken } from "@/lib/api-token";
 import { recordEvent } from "@/lib/event-service";
 import type { ActionResult } from "@/lib/types";
@@ -12,8 +12,8 @@ export async function createTokenAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult & { token?: string }> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "请先登录" };
+  const user = await requireProjectOwner(projectId);
+  if (!user) return { ok: false, error: "无权操作" };
 
   const name = (formData.get("name") as string)?.trim() || "默认";
   const { token, tokenHash, prefix } = generateToken();
@@ -34,8 +34,8 @@ export async function revokeTokenAction(
   projectId: string,
   tokenId: string,
 ): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "请先登录" };
+  const user = await requireProjectOwner(projectId);
+  if (!user) return { ok: false, error: "无权操作" };
 
   const r = await prisma.projectToken.updateMany({
     where: { id: tokenId, projectId, revokedAt: null },

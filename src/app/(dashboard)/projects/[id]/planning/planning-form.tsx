@@ -10,9 +10,11 @@ import type { ActionResult } from "@/lib/types";
 export function PlanningForm({
   projectId,
   initialPlanning,
+  canEdit,
 }: {
   projectId: string;
   initialPlanning: string;
+  canEdit: boolean;
 }) {
   const [state, action, pending] = useActionState(
     updatePlanningAction.bind(null, projectId),
@@ -28,27 +30,38 @@ export function PlanningForm({
         </p>
       </CardHeader>
       <CardBody>
-        <form action={action} className="space-y-3">
-          <Textarea
-            name="planning"
-            defaultValue={initialPlanning}
-            rows={22}
-            placeholder="# 规划&#10;&#10;写下目标、阶段、待办方向…"
-            className="font-mono text-sm"
-          />
-          <FieldError>{state.errors?.planning?.[0]}</FieldError>
-          {state.ok && (
-            <p className="border-2 border-ink bg-grass px-3 py-1.5 text-sm font-bold">
-              ✓ 已保存
+        {canEdit ? (
+          <form action={action} className="space-y-3">
+            <Textarea
+              name="planning"
+              defaultValue={initialPlanning}
+              rows={22}
+              placeholder="# 规划&#10;&#10;写下目标、阶段、待办方向…"
+              className="font-mono text-sm"
+            />
+            <FieldError>{state.errors?.planning?.[0]}</FieldError>
+            {state.ok && (
+              <p className="border-2 border-ink bg-grass px-3 py-1.5 text-sm font-bold">
+                ✓ 已保存
+              </p>
+            )}
+            {state.error && (
+              <p className="text-sm font-bold text-accent">{state.error}</p>
+            )}
+            <Button type="submit" size="sm" disabled={pending}>
+              {pending ? "保存中…" : "保存规划"}
+            </Button>
+          </form>
+        ) : (
+          <>
+            <pre className="whitespace-pre-wrap break-words rounded-input border-2 border-ink bg-paper p-3 font-mono text-sm">
+              {initialPlanning || "（暂无规划）"}
+            </pre>
+            <p className="mt-3 text-xs font-medium text-muted">
+              仅项目拥有者可在 Web 端修改规划；AI 可通过 API 更新。
             </p>
-          )}
-          {state.error && (
-            <p className="text-sm font-bold text-accent">{state.error}</p>
-          )}
-          <Button type="submit" size="sm" disabled={pending}>
-            {pending ? "保存中…" : "保存规划"}
-          </Button>
-        </form>
+          </>
+        )}
       </CardBody>
     </Card>
   );

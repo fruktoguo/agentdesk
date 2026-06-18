@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/dal";
+import { assertTaskInProject, requireProjectOwner } from "@/lib/dal";
 import { taskCreateSchema, commentCreateSchema } from "@/lib/validation";
 import { createTask, cancelTask } from "@/lib/task-service";
 import { recordEvent } from "@/lib/event-service";
@@ -14,8 +14,8 @@ export async function createTaskAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "请先登录" };
+  const user = await requireProjectOwner(projectId);
+  if (!user) return { ok: false, error: "无权操作" };
 
   const parsed = taskCreateSchema.safeParse({
     title: formData.get("title"),
@@ -40,8 +40,11 @@ export async function cancelTaskAction(
   projectId: string,
   taskId: string,
 ): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "请先登录" };
+  const user = await requireProjectOwner(projectId);
+  if (!user) return { ok: false, error: "无权操作" };
+
+  const taskBelongsToProject = await assertTaskInProject(taskId, projectId);
+  if (!taskBelongsToProject) return { ok: false, error: "任务不存在或无权操作" };
 
   await cancelTask(taskId, { type: "user", userId: user.id, role: user.name });
   revalidatePath(`/projects/${projectId}/tasks`);
@@ -54,8 +57,11 @@ export async function addCommentAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "请先登录" };
+  const user = await requireProjectOwner(projectId);
+  if (!user) return { ok: false, error: "无权操作" };
+
+  const taskBelongsToProject = await assertTaskInProject(taskId, projectId);
+  if (!taskBelongsToProject) return { ok: false, error: "任务不存在或无权操作" };
 
   const parsed = commentCreateSchema.safeParse({ body: formData.get("body") });
   if (!parsed.success) {

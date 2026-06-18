@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/dal";
+import { requireProjectOwner } from "@/lib/dal";
 import { recordEvent } from "@/lib/event-service";
 import { planningUpdateSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/types";
@@ -12,8 +12,8 @@ export async function updatePlanningAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "请先登录" };
+  const user = await requireProjectOwner(projectId);
+  if (!user) return { ok: false, error: "无权操作" };
 
   const parsed = planningUpdateSchema.safeParse({
     planning: (formData.get("planning") as string) ?? "",

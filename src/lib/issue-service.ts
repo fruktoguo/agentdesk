@@ -59,37 +59,54 @@ export async function resolveIssue(issueId: string, actor: Actor) {
   return { ok: true as const, issue };
 }
 
+class IssueAlreadyConvertedError extends Error {}
+
 // ───────────────────────── 问题转任务 ─────────────────────────
 export async function convertIssueToTask(issueId: string, actor: Actor) {
-  const issue = await prisma.issue.findUnique({ where: { id: issueId } });
-  if (!issue) return { ok: false as const, code: "NOT_FOUND" };
-  if (issue.convertedTaskId) {
-    return { ok: false as const, code: "ALREADY_CONVERTED" };
-  }
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const issue = await tx.issue.findUnique({ where: { id: issueId } });
+      if (!issue) return { ok: false as const, code: "NOT_FOUND" };
+      if (issue.convertedTaskId) {
+        return { ok: false as const, code: "ALREADY_CONVERTED" };
+      }
 
-  const task = await prisma.task.create({
-    data: {
-      projectId: issue.projectId,
-      title: issue.title,
-      description: issue.description,
-      priority: issue.severity,
-      status: TaskStatus.OPEN,
-      createdVia: Source.API,
-      createdByRole: actor.role,
-      fromIssueId: issue.id,
-    },
-  });
-  await prisma.issue.update({
-    where: { id: issueId },
-    data: { convertedTaskId: task.id },
-  });
-  await recordEvent({
-    projectId: issue.projectId,
-    type: "issue_converted",
-    issueId,
-    taskId: task.id,
-    actor,
-    summary: `问题「${issue.title}」转为任务`,
-  });
-  return { ok: true as const, task };
+      const task = await tx.task.create({
+        data: {
+          projectId: issue.projectId,
+          title: issue.title,
+          description: issue.description,
+          priority: issue.severity,
+          status: TaskStatus.OPEN,
+          createdVia: Source.API,
+          createdByRole: actor.role,
+          fromIssueId: issue.id,
+        },
+      });
+      const updated = await tx.issue.updateMany({
+        where: { id: issueId, convertedTaskId: null },
+        data: { convertedTaskId: task.id },
+      });
+      if (updated.count === 0) throw new IssueAlreadyConvertedError();
+
+      return { ok: true as const, issue, task };
+    });
+
+    if (!result.ok) return result;
+
+    await recordEvent({
+      projectId: result.issue.projectId,
+      type: "issue_converted",
+      issueId,
+      taskId: result.task.id,
+      actor,
+      summary: `问题「${result.issue.title}」转为任务`,
+    });
+    return { ok: true as const, task: result.task };
+  } catch (error) {
+    if (error instanceof IssueAlreadyConvertedError) {
+      return { ok: false as const, code: "ALREADY_CONVERTED" };
+    }
+    throw error;
+  }
 }
