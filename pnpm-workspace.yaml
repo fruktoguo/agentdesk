@@ -1,0 +1,9 @@
+# pnpm 10：build script 授权需在此声明，否则容器/CI 会因 strict 模式报 ERR_PNPM_IGNORED_BUILDS
+onlyBuiltDependencies:
+  - "@prisma/engines"
+  - prisma
+  - esbuild
+  - sharp
+  - unrs-resolver
+# 禁用 supply-chain 的最小发布时长检查
+minimumReleaseAge: 0

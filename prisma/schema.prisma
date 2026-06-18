@@ -1,0 +1,192 @@
+// AgentDesk 平台 — Prisma 数据模型
+// 核心：User / Project / ProjectToken / Task / Issue / Event / Comment
+// 设计：token 绑定单个项目；无成员体系；所有写操作记入统一 Event 留档
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7: 连接 URL 在 prisma.config.ts，运行时通过 driver adapter 连接
+}
+
+// ───────────────────────── 人类用户 ─────────────────────────
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedProjects Project[]
+  createdTasks  Task[]         @relation("TaskCreatedByUser")
+  comments      Comment[]
+  tokens        ProjectToken[] @relation("TokenCreator")
+}
+
+// ───────────────────────── 项目 ─────────────────────────
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  planning    String? // 项目级规划 Markdown 文档
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tokens ProjectToken[]
+  tasks  Task[]
+  issues Issue[]
+  events Event[]
+
+  @@index([ownerId])
+}
+
+// ───────────────────────── 项目 Token（绑定单个项目，AI 凭证） ─────────────────────────
+model ProjectToken {
+  id         String    @id @default(cuid())
+  projectId  String
+  name       String
+  tokenHash  String    @unique // 只存哈希
+  prefix     String    // 明文前 12 位，界面识别
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  createdById String?
+  createdBy   User?    @relation("TokenCreator", fields: [createdById], references: [id])
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+// ───────────────────────── 任务 ─────────────────────────
+model Task {
+  id          String     @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  type        String     @default("general")
+  priority    Priority   @default(MEDIUM)
+  status      TaskStatus @default(OPEN)
+
+  // 领取信息
+  claimedByRole    String?
+  claimedAt        DateTime?
+  claimedByTokenId String?
+
+  // 创建来源
+  createdVia    Source  @default(WEB)
+  createdById   String?
+  createdByRole String?
+  createdByUser User?   @relation("TaskCreatedByUser", fields: [createdById], references: [id])
+
+  // 处理结果
+  result String?
+  // 由问题转来时记录来源（不建外键，审计用）
+  fromIssueId String?
+
+  // 乐观锁
+  version Int @default(0)
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  comments Comment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, status])
+  @@index([projectId, status, priority])
+  @@index([claimedByRole])
+}
+
+enum TaskStatus {
+  OPEN
+  CLAIMED
+  NEEDS_FIX
+  DONE
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Source {
+  WEB
+  API
+}
+
+// ───────────────────────── 问题（独立实体，可转为任务） ─────────────────────────
+model Issue {
+  id              String      @id @default(cuid())
+  projectId       String
+  title           String
+  description     String?
+  status          IssueStatus @default(OPEN)
+  severity        Priority    @default(MEDIUM)
+  createdVia      Source      @default(WEB)
+  createdById     String?
+  createdByRole   String?
+  resolvedAt      DateTime?
+  resolvedByRole  String?
+  convertedTaskId String? // 转任务后的 task.id（不建外键）
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+}
+
+enum IssueStatus {
+  OPEN
+  RESOLVED
+}
+
+// ───────────────────────── 统一事件流（所有写操作留档 + SSE 数据源） ─────────────────────────
+// taskId / issueId 可空且不建外键：任务/问题删除后事件仍作为审计保留
+model Event {
+  id        String   @id @default(cuid())
+  projectId String
+  type      String // task_created/task_claimed/task_released/task_needs_fix/task_completed/task_cancelled/task_commented/issue_created/issue_resolved/issue_converted/planning_updated/token_created/token_revoked
+  taskId    String?
+  issueId   String?
+  actorType String // user / agent
+  actorRole String?
+  summary   String?
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([taskId])
+  @@index([issueId])
+}
+
+// ───────────────────────── 任务评论 ─────────────────────────
+model Comment {
+  id         String   @id @default(cuid())
+  taskId     String
+  projectId  String
+  body       String
+  authorType String // user / agent
+  authorRole String?
+  authorId   String?
+  author     User?    @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([projectId])
+}

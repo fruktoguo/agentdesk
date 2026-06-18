@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/* ───────────────────────── 孟菲斯设计 token ───────────────────────── */
+@theme {
+  /* 糖果撞色 */
+  --color-bg: #ffffff;
+  --color-ink: #000000; /* 纯黑：文字 + 描边 */
+  --color-muted: #4a4a4a;
+  --color-paper: #fffdf5; /* 微暖底 */
+
+  --color-surface: #ffeb3b; /* 柠檬明黄 */
+  --color-sky: #2196f3; /* 天空蓝 */
+  --color-accent: #e91e63; /* 枚红 */
+  --color-accent-hover: #c2185b;
+  --color-grass: #3ddc84; /* 绿 — 已完成 */
+  --color-sun: #ff9f43; /* 橙 — 待修复 */
+  --color-grape: #9c27b0; /* 紫 */
+  --color-rose: #ff5a7a;
+
+  /* 硬实体投影（无羽化） */
+  --shadow-hard-sm: 2px 2px 0px 0px #000000;
+  --shadow-hard: 4px 4px 0px 0px #000000;
+  --shadow-hard-lg: 6px 6px 0px 0px #000000;
+  --shadow-hard-xl: 8px 8px 0px 0px #000000;
+
+  /* 钝圆角 */
+  --radius-card: 16px;
+  --radius-btn: 10px;
+  --radius-input: 10px;
+}
+
+@theme inline {
+  --font-display: var(--font-space-grotesk);
+}
+
+/* ───────────────────────── 全局基础 ───────────────────────── */
+* {
+  border-color: var(--color-ink);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+/* 标题：大写、字重拉满 */
+.heading {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* ───────────────────────── 孟菲斯纹理与图案 ───────────────────────── */
+
+/* 黑色点状纹理（标志性） */
+.bg-dots {
+  background-image: radial-gradient(#000000 1.6px, transparent 1.7px);
+  background-size: 20px 20px;
+}
+
+/* 用 currentColor 着色的点状纹理 */
+.bg-dots-ink {
+  background-image: radial-gradient(currentColor 1.6px, transparent 1.7px);
+  background-size: 20px 20px;
+}
+
+/* 细斜条纹 */
+.bg-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #000 0,
+    #000 2px,
+    transparent 2px,
+    transparent 10px
+  );
+}
+
+/* ───────────────────────── 玩具式交互 ───────────────────────── */
+
+/* 按压：hover 微抬升加大投影，active 下压缩小投影 */
+.pressable {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.pressable:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-hard-lg);
+}
+.pressable:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-hard-sm);
+}
+.pressable:disabled {
+  transform: none;
+  box-shadow: var(--shadow-hard-sm);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 卡片悬浮 */
+.card-hover {
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.card-hover:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: var(--shadow-hard-xl);
+}
+
+/* 旋转装饰 */
+.spin-slow {
+  animation: spin 18s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 漂浮 */
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* SSE 新事件闪现 */
+.flash-in {
+  animation: flash 0.6s ease;
+}
+@keyframes flash {
+  0% {
+    background-color: var(--color-surface);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-paper);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink);
+  border: 3px solid var(--color-paper);
+  border-radius: 0;
+}

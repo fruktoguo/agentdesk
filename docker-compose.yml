@@ -1,0 +1,46 @@
+# AgentDesk 平台 — 开发与自部署
+# 开发：仅启动 db，app 本地 `pnpm dev`
+# 部署：`docker compose up -d` 一键拉起 db + app
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: agentdesk-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agentdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentdesk}
+      POSTGRES_DB: ${POSTGRES_DB:-agentdesk}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - agentdesk-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-agentdesk} -d ${POSTGRES_DB:-agentdesk}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: agentdesk:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agentdesk-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agentdesk}:${POSTGRES_PASSWORD:-agentdesk}@db:5432/${POSTGRES_DB:-agentdesk}?schema=public
+      SESSION_SECRET: ${SESSION_SECRET}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      NODE_ENV: production
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  agentdesk-pgdata:
