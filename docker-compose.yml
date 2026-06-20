@@ -29,11 +29,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: app
     container_name: agentdesk-app
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-agentdesk}:${POSTGRES_PASSWORD:-agentdesk}@db:5432/${POSTGRES_DB:-agentdesk}?schema=public
       SESSION_SECRET: ${SESSION_SECRET}
@@ -41,6 +44,21 @@ services:
       NODE_ENV: production
     ports:
       - "${APP_PORT:-3000}:3000"
+
+  migrate:
+    image: agentdesk:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    container_name: agentdesk-migrate
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agentdesk}:${POSTGRES_PASSWORD:-agentdesk}@db:5432/${POSTGRES_DB:-agentdesk}?schema=public
+    command: ["node", "scripts/run-migrations.mjs"]
 
 volumes:
   agentdesk-pgdata:

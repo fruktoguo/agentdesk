@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgentDesk API"
+  short_description: "Operate AgentDesk through its agent HTTP API"
+  default_prompt: "Use $agentdesk-api to claim the next project task and report the result."

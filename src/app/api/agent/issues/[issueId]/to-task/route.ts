@@ -26,7 +26,8 @@ export async function POST(
   const r = await convertIssueToTask(issueId, {
     type: "agent",
     role: auth.role,
-  });
+    tokenId: auth.tokenId,
+  }, { projectId: auth.projectId });
   if (!r.ok) {
     if (r.code === "NOT_FOUND") {
       return Response.json({ error: "问题不存在" }, { status: 404 });

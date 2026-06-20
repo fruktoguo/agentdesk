@@ -9,6 +9,10 @@ export interface IssueCreateInput {
   severity?: Priority;
 }
 
+type ProjectScope = {
+  projectId?: string;
+};
+
 // ───────────────────────── 创建问题 ─────────────────────────
 export async function createIssue(
   projectId: string,
@@ -38,9 +42,17 @@ export async function createIssue(
 }
 
 // ───────────────────────── 标记解决 ─────────────────────────
-export async function resolveIssue(issueId: string, actor: Actor) {
+export async function resolveIssue(
+  issueId: string,
+  actor: Actor,
+  scope: ProjectScope = {},
+) {
   const r = await prisma.issue.updateMany({
-    where: { id: issueId, status: IssueStatus.OPEN },
+    where: {
+      id: issueId,
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      status: IssueStatus.OPEN,
+    },
     data: {
       status: IssueStatus.RESOLVED,
       resolvedAt: new Date(),
@@ -62,10 +74,19 @@ export async function resolveIssue(issueId: string, actor: Actor) {
 class IssueAlreadyConvertedError extends Error {}
 
 // ───────────────────────── 问题转任务 ─────────────────────────
-export async function convertIssueToTask(issueId: string, actor: Actor) {
+export async function convertIssueToTask(
+  issueId: string,
+  actor: Actor,
+  scope: ProjectScope = {},
+) {
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const issue = await tx.issue.findUnique({ where: { id: issueId } });
+      const issue = await tx.issue.findFirst({
+        where: {
+          id: issueId,
+          ...(scope.projectId ? { projectId: scope.projectId } : {}),
+        },
+      });
       if (!issue) return { ok: false as const, code: "NOT_FOUND" };
       if (issue.convertedTaskId) {
         return { ok: false as const, code: "ALREADY_CONVERTED" };
@@ -84,7 +105,11 @@ export async function convertIssueToTask(issueId: string, actor: Actor) {
         },
       });
       const updated = await tx.issue.updateMany({
-        where: { id: issueId, convertedTaskId: null },
+        where: {
+          id: issueId,
+          ...(scope.projectId ? { projectId: scope.projectId } : {}),
+          convertedTaskId: null,
+        },
         data: { convertedTaskId: task.id },
       });
       if (updated.count === 0) throw new IssueAlreadyConvertedError();

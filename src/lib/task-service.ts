@@ -24,6 +24,10 @@ export type ClaimNextResult =
   | { ok: true; task: Awaited<ReturnType<typeof prisma.task.findFirst>> }
   | { ok: false; code: "NO_OPEN_TASK" };
 
+type ProjectScope = {
+  projectId?: string;
+};
+
 // ───────────────────────── 创建 ─────────────────────────
 export async function createTask(
   projectId: string,
@@ -55,10 +59,15 @@ export async function createTask(
 }
 
 // ───────────────────────── 领取指定任务 ─────────────────────────
-export async function claimTask(taskId: string, actor: Actor): Promise<ClaimResult> {
+export async function claimTask(
+  taskId: string,
+  actor: Actor,
+  scope: ProjectScope = {},
+): Promise<ClaimResult> {
   const r = await prisma.task.updateMany({
     where: {
       id: taskId,
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
       status: { in: [TaskStatus.OPEN, TaskStatus.NEEDS_FIX] },
     },
     data: {
@@ -71,8 +80,8 @@ export async function claimTask(taskId: string, actor: Actor): Promise<ClaimResu
   });
 
   if (r.count === 0) {
-    const cur = await prisma.task.findUnique({
-      where: { id: taskId },
+    const cur = await prisma.task.findFirst({
+      where: { id: taskId, ...(scope.projectId ? { projectId: scope.projectId } : {}) },
       select: { projectId: true, status: true, claimedByRole: true, title: true },
     });
     if (!cur) return { ok: false, code: "NOT_FOUND" };
@@ -113,6 +122,7 @@ export async function claimNextTask(
     const r = await tx.task.updateMany({
       where: {
         id: candidate.id,
+        projectId,
         status: { in: [TaskStatus.OPEN, TaskStatus.NEEDS_FIX] },
       },
       data: {
@@ -126,28 +136,33 @@ export async function claimNextTask(
     if (r.count === 0) return { ok: false, code: "NO_OPEN_TASK" } as const;
 
     const task = await tx.task.findUnique({ where: { id: candidate.id } });
-    const projectId_ = projectId;
-    const taskId = candidate.id;
-    const title = task!.title;
-    const actorRef = actor;
-    queueMicrotask(() =>
-      recordEvent({
-        projectId: projectId_,
-        type: "task_claimed",
-        taskId,
-        actor: actorRef,
-        summary: `${actorRef.role} 领取了「${title}」`,
-        payload: { via: "claim-next" },
-      }),
-    );
     return { ok: true, task } as const;
+  }).then(async (result) => {
+    if (!result.ok) return result;
+    await recordEvent({
+      projectId,
+      type: "task_claimed",
+      taskId: result.task!.id,
+      actor,
+      summary: `${actor.role} 领取了「${result.task!.title}」`,
+      payload: { via: "claim-next" },
+    });
+    return result;
   });
 }
 
 // ───────────────────────── 释放 ─────────────────────────
-export async function releaseTask(taskId: string, actor: Actor) {
+export async function releaseTask(
+  taskId: string,
+  actor: Actor,
+  scope: ProjectScope = {},
+) {
   const r = await prisma.task.updateMany({
-    where: { id: taskId, status: TaskStatus.CLAIMED },
+    where: {
+      id: taskId,
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      status: TaskStatus.CLAIMED,
+    },
     data: {
       status: TaskStatus.OPEN,
       claimedByRole: null,
@@ -173,9 +188,14 @@ export async function completeTask(
   taskId: string,
   actor: Actor,
   result?: string,
+  scope: ProjectScope = {},
 ) {
   const r = await prisma.task.updateMany({
-    where: { id: taskId, status: TaskStatus.CLAIMED },
+    where: {
+      id: taskId,
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      status: TaskStatus.CLAIMED,
+    },
     data: { status: TaskStatus.DONE, result, version: { increment: 1 } },
   });
   if (r.count === 0) return { ok: false as const, code: "NOT_CLAIMED" };
@@ -196,9 +216,14 @@ export async function markNeedsFix(
   taskId: string,
   actor: Actor,
   reason?: string,
+  scope: ProjectScope = {},
 ) {
   const r = await prisma.task.updateMany({
-    where: { id: taskId, status: TaskStatus.CLAIMED },
+    where: {
+      id: taskId,
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      status: TaskStatus.CLAIMED,
+    },
     data: { status: TaskStatus.NEEDS_FIX, result: reason, version: { increment: 1 } },
   });
   if (r.count === 0) return { ok: false as const, code: "NOT_CLAIMED" };
@@ -215,9 +240,17 @@ export async function markNeedsFix(
 }
 
 // ───────────────────────── 取消 ─────────────────────────
-export async function cancelTask(taskId: string, actor: Actor) {
+export async function cancelTask(
+  taskId: string,
+  actor: Actor,
+  scope: ProjectScope = {},
+) {
   const r = await prisma.task.updateMany({
-    where: { id: taskId, status: { not: TaskStatus.DONE } },
+    where: {
+      id: taskId,
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      status: { not: TaskStatus.DONE },
+    },
     data: { status: TaskStatus.CANCELLED, version: { increment: 1 } },
   });
   if (r.count === 0) return { ok: false as const, code: "ALREADY_DONE" };

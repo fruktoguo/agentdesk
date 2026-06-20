@@ -36,7 +36,8 @@ export async function recordEvent(params: {
     },
   });
 
-  publishProjectEvent(params.projectId, {
+  await publishProjectEvent(params.projectId, {
+    eventId: event.id,
     type: params.type,
     taskId: params.taskId,
     issueId: params.issueId,

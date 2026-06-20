@@ -36,6 +36,7 @@ export async function POST(
     taskId,
     { type: "agent", role: auth.role, tokenId: auth.tokenId },
     parsed.data.reason,
+    { projectId: auth.projectId },
   );
   if (!r.ok) {
     return Response.json({ error: "任务当前未被领取" }, { status: 409 });

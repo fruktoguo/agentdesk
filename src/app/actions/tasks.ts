@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { assertTaskInProject, requireProjectOwner } from "@/lib/dal";
+import { assertTaskInProject, requireProjectOwner, requireUser } from "@/lib/dal";
 import { taskCreateSchema, commentCreateSchema } from "@/lib/validation";
 import { createTask, cancelTask } from "@/lib/task-service";
 import { recordEvent } from "@/lib/event-service";
@@ -46,7 +46,11 @@ export async function cancelTaskAction(
   const taskBelongsToProject = await assertTaskInProject(taskId, projectId);
   if (!taskBelongsToProject) return { ok: false, error: "任务不存在或无权操作" };
 
-  await cancelTask(taskId, { type: "user", userId: user.id, role: user.name });
+  await cancelTask(
+    taskId,
+    { type: "user", userId: user.id, role: user.name },
+    { projectId },
+  );
   revalidatePath(`/projects/${projectId}/tasks`);
   return { ok: true };
 }
@@ -57,8 +61,7 @@ export async function addCommentAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const user = await requireProjectOwner(projectId);
-  if (!user) return { ok: false, error: "无权操作" };
+  const user = await requireUser();
 
   const taskBelongsToProject = await assertTaskInProject(taskId, projectId);
   if (!taskBelongsToProject) return { ok: false, error: "任务不存在或无权操作" };

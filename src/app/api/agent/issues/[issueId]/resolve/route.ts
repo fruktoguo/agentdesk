@@ -22,7 +22,11 @@ export async function POST(
     return Response.json({ error: "无权操作" }, { status: 403 });
   }
 
-  const r = await resolveIssue(issueId, { type: "agent", role: auth.role });
+  const r = await resolveIssue(
+    issueId,
+    { type: "agent", role: auth.role, tokenId: auth.tokenId },
+    { projectId: auth.projectId },
+  );
   if (!r.ok) {
     return Response.json({ error: "问题当前不可解决" }, { status: 409 });
   }

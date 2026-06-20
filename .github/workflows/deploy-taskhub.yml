@@ -1,0 +1,196 @@
+name: Deploy TaskHub
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-taskhub
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      app_image: ${{ steps.meta.outputs.app_image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tags
+        id: meta
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME,,}"
+          echo "app_image=${image}:app-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "APP_IMAGE=${image}:app-${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "APP_LATEST=${image}:app-latest" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: app
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.APP_IMAGE }}
+            ${{ env.APP_LATEST }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
+  deploy:
+    name: Deploy on apiserver
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+    steps:
+      - name: Checkout deployment files
+        uses: actions/checkout@v4
+
+      - name: Install SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.APISERVER_SSH_KEY }}
+          SSH_HOST: ${{ secrets.APISERVER_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/apiserver
+          chmod 600 ~/.ssh/apiserver
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Copy compose file
+        env:
+          SSH_HOST: ${{ secrets.APISERVER_HOST }}
+          SSH_USER: ${{ secrets.APISERVER_USER }}
+          SSH_PORT: ${{ secrets.APISERVER_PORT }}
+        run: |
+          ssh -i ~/.ssh/apiserver -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            'mkdir -p /home/ubuntu/taskhub'
+          scp -i ~/.ssh/apiserver -P "$SSH_PORT" \
+            deploy/taskhub/docker-compose.yml \
+            "$SSH_USER@$SSH_HOST:/home/ubuntu/taskhub/docker-compose.yml"
+
+      - name: Write server environment
+        env:
+          SSH_HOST: ${{ secrets.APISERVER_HOST }}
+          SSH_USER: ${{ secrets.APISERVER_USER }}
+          SSH_PORT: ${{ secrets.APISERVER_PORT }}
+          APP_IMAGE: ${{ needs.build.outputs.app_image }}
+          POSTGRES_USER: ${{ secrets.TASKHUB_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.TASKHUB_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.TASKHUB_POSTGRES_DB }}
+          SESSION_SECRET: ${{ secrets.TASKHUB_SESSION_SECRET }}
+          APP_URL: ${{ secrets.TASKHUB_APP_URL }}
+          APP_BIND: ${{ secrets.TASKHUB_APP_BIND }}
+          APP_PORT: ${{ secrets.TASKHUB_APP_PORT }}
+        run: |
+          set -euo pipefail
+          : "${SSH_PORT:=22}"
+          : "${POSTGRES_USER:=taskhub}"
+          : "${POSTGRES_DB:=taskhub}"
+          : "${APP_URL:=https://taskhub.yuohira.com}"
+          : "${APP_BIND:=127.0.0.1}"
+          : "${APP_PORT:=3009}"
+          umask 077
+          cat > taskhub.env <<EOF
+          APP_IMAGE=${APP_IMAGE}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_DB=${POSTGRES_DB}
+          SESSION_SECRET=${SESSION_SECRET}
+          APP_URL=${APP_URL}
+          APP_BIND=${APP_BIND}
+          APP_PORT=${APP_PORT}
+          EOF
+          scp -i ~/.ssh/apiserver -P "$SSH_PORT" \
+            taskhub.env \
+            "$SSH_USER@$SSH_HOST:/home/ubuntu/taskhub/.env"
+          ssh -i ~/.ssh/apiserver -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            'chmod 600 /home/ubuntu/taskhub/.env'
+
+      - name: Pull and restart containers
+        env:
+          SSH_HOST: ${{ secrets.APISERVER_HOST }}
+          SSH_USER: ${{ secrets.APISERVER_USER }}
+          SSH_PORT: ${{ secrets.APISERVER_PORT }}
+          APP_IMAGE: ${{ needs.build.outputs.app_image }}
+          GHCR_USER: ${{ secrets.GHCR_DEPLOY_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${SSH_PORT:=22}"
+          umask 077
+          cat > ghcr.env <<EOF
+          GHCR_USER=${GHCR_USER}
+          GHCR_TOKEN=${GHCR_TOKEN}
+          EOF
+          scp -i ~/.ssh/apiserver -P "$SSH_PORT" \
+            ghcr.env \
+            "$SSH_USER@$SSH_HOST:/home/ubuntu/taskhub/.ghcr.env"
+          ssh -i ~/.ssh/apiserver -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            'chmod 600 /home/ubuntu/taskhub/.ghcr.env'
+          ssh -i ~/.ssh/apiserver -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "APP_IMAGE='$APP_IMAGE' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /home/ubuntu/taskhub
+
+          if [ ! -f .env ]; then
+            echo "Missing /home/ubuntu/taskhub/.env" >&2
+            exit 1
+          fi
+
+          set -a
+          . ./.ghcr.env
+          set +a
+          rm -f ./.ghcr.env
+
+          if [ -n "${GHCR_TOKEN:-}" ]; then
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          fi
+
+          docker pull "$APP_IMAGE"
+
+          set -a
+          . ./.env
+          set +a
+
+          : "${POSTGRES_USER:=taskhub}"
+          : "${POSTGRES_DB:=taskhub}"
+          : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env}"
+
+          docker compose up -d --no-build --wait db
+
+          database_url="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@taskhub-db:5432/${POSTGRES_DB}?schema=public"
+          docker run --rm \
+            --network taskhub_default \
+            -e DATABASE_URL="$database_url" \
+            "$APP_IMAGE" \
+            node scripts/run-migrations.mjs
+
+          docker compose up -d --no-build --remove-orphans app
+          docker image prune -f --filter "until=168h"
+          docker compose ps
+          REMOTE
+
+      - name: Verify public endpoint
+        run: |
+          curl --fail --show-error --location --max-time 20 https://taskhub.yuohira.com/login >/dev/null

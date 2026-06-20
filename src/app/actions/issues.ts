@@ -44,7 +44,11 @@ export async function resolveIssueAction(
   const issueBelongsToProject = await assertIssueInProject(issueId, projectId);
   if (!issueBelongsToProject) return { ok: false, error: "问题不存在或无权操作" };
 
-  await resolveIssue(issueId, { type: "user", userId: user.id, role: user.name });
+  await resolveIssue(
+    issueId,
+    { type: "user", userId: user.id, role: user.name },
+    { projectId },
+  );
   revalidatePath(`/projects/${projectId}/issues`);
   return { ok: true };
 }
@@ -63,7 +67,7 @@ export async function convertIssueAction(
     type: "user",
     userId: user.id,
     role: user.name,
-  });
+  }, { projectId });
   if (!result.ok) {
     return {
       ok: false,

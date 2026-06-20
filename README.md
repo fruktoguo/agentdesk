@@ -1,5 +1,68 @@
 # AgentDesk
 
+## AI Skill 安装
+
+本仓库内置了一个可给 Codex、Claude Code 或其他支持 `SKILL.md` 目录结构的 AI Agent 使用的 AgentDesk API skill：
+
+```text
+skills/agentdesk-api
+```
+
+GitHub 推送后可直接把下面两个链接发给 AI：
+
+```text
+Skill 目录：
+https://github.com/fruktoguo/agentdesk/tree/main/skills/agentdesk-api
+
+Raw SKILL.md：
+https://raw.githubusercontent.com/fruktoguo/agentdesk/main/skills/agentdesk-api/SKILL.md
+```
+
+Codex 本地安装：
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/agentdesk-api "${CODEX_HOME:-$HOME/.codex}/skills/"
+cp "${CODEX_HOME:-$HOME/.codex}/skills/agentdesk-api/.env.example" \
+  "${CODEX_HOME:-$HOME/.codex}/skills/agentdesk-api/.env"
+chmod +x "${CODEX_HOME:-$HOME/.codex}/skills/agentdesk-api/scripts/agentdesk_api.py"
+```
+
+Claude Code 或其他 Agent 可把整个 `skills/agentdesk-api` 目录复制到自身的 skills 目录。关键是保留 `SKILL.md`、`scripts/agentdesk_api.py` 和 `.env.example` 的相对位置。
+
+安装后编辑本地 `.env`：
+
+```env
+AGENTDESK_HOST=https://taskhub.yuohira.com/
+AGENTDESK_TOKEN=项目 Token
+```
+
+不要提交 `.env`，仓库版已通过 `skills/agentdesk-api/.gitignore` 忽略它。`AGENTDESK_ROLE` 不写入 `.env`；AI 应根据自身模型和任务传 `--role`，不确定时询问开发者。
+
+快速测试：
+
+```bash
+python3 ~/.codex/skills/agentdesk-api/scripts/agentdesk_api.py --role codex planning
+```
+
+### 建议加入项目规则
+
+为了让 AI 更好地影响项目、减少遗漏，建议把下面这段加入项目规则文件，例如 `AGENTS.md`、`CLAUDE.md`、Codex custom instructions 或其他 Agent 的 project rules：
+
+```text
+当本项目安装了 agentdesk-api skill 时，开始任何非琐碎工作前，先使用该 skill 读取 AgentDesk 项目状态：
+
+1. 读取项目 planning，理解当前目标、约束和已知决策。
+2. 查询 OPEN 与 NEEDS_FIX 任务，确认是否存在更高优先级或已分配的剩余问题/待办。
+3. 如果用户没有指定具体任务，优先 claim-next 或询问开发者应处理哪个任务。
+4. 在开始实现前领取对应任务；无法判断角色时询问开发者应使用什么 X-Agent-Role。
+5. 工作中发现独立缺陷或后续事项时，创建 issue 或 task，不要只留在聊天记录里。
+6. 完成后用 complete 回传结果，说明改了什么、验证了什么、仍有哪些风险；如果被阻塞，用 needs-fix 写清原因。
+7. 不要输出、提交或记录 AGENTDESK_TOKEN；只从本地 skill .env 或开发者批准的安全来源读取。
+```
+
+更完整的安装说明见 [docs/agentdesk-api-skill-install.md](docs/agentdesk-api-skill-install.md)。
+
 AgentDesk 是一个面向 **人类 + AI Agent 协作** 的任务与缺陷管理平台。它借鉴了禅道、Jira、Issue Tracker 这类系统的工作方式，但重点不是“管理人”，而是“管理多个 AI 代理如何接任务、做任务、回传结果、留下审计记录”。
 
 你可以把它理解为一个 **AI-first 的研发协作中枢**：
@@ -363,12 +426,14 @@ public/            静态资源
 
 - `src/proxy.ts` 负责基础路由守卫：未登录用户会被重定向到登录页。
 - 真正的权限判断应在 server action、DAL 或 route handler 内完成，而不是只依赖 proxy。
-- 当前 SSE 事件总线使用内存 `EventEmitter`，适合单实例部署；如果以后要多实例扩展，需要接入跨进程广播方案。
+- 当前 SSE 事件总线使用本进程 `EventEmitter` 做即时广播，并通过 PostgreSQL `LISTEN/NOTIFY` 桥接跨进程事件。
 - Prisma 使用 driver adapter 模式，通过 `prisma.config.ts` 配置 migration / seed，运行时则由 `@prisma/adapter-pg` 连接数据库。
 
 ## Docker 部署
 
-`docker-compose.yml` 默认启动 PostgreSQL 和应用服务。应用容器启动时会先执行 `prisma migrate deploy`，然后再启动 Next.js 服务器。
+`docker-compose.yml` 默认启动 PostgreSQL、一次性迁移任务和应用服务。迁移任务复用同一个已构建应用镜像中的轻量 SQL runner，应用容器本身只启动 Next.js 服务器。
+
+GitHub Actions 部署到 `apiserver` 时由 GitHub runner 构建并推送镜像，服务器只拉取镜像、运行迁移和重启容器，不在服务器上构建或编译。
 
 常用命令：
 
@@ -381,4 +446,3 @@ docker compose down
 ## 许可证
 
 MIT
-

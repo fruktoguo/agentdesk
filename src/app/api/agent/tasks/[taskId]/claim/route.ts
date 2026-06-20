@@ -27,7 +27,7 @@ export async function POST(
     type: "agent",
     role: auth.role,
     tokenId: auth.tokenId,
-  });
+  }, { projectId: auth.projectId });
   if (!r.ok) {
     if (r.code === "NOT_FOUND") {
       return Response.json({ error: "任务不存在" }, { status: 404 });
