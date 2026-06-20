@@ -2,23 +2,25 @@
 
 ## AI Skill 安装
 
-本仓库内置了一个可给 Codex、Claude Code 或其他支持 `SKILL.md` 目录结构的 AI Agent 使用的 AgentDesk API skill：
+把下面这一段复制给 Codex、Claude Code 或其他 AI Agent，它会按链接安装/读取 AgentDesk API skill：
+
+```text
+请安装并使用这个 AgentDesk API skill：
+https://raw.githubusercontent.com/fruktoguo/agentdesk/main/skills/agentdesk-api/SKILL.md
+
+如果你的环境支持从 GitHub 目录安装 skill，请使用完整目录：
+https://github.com/fruktoguo/agentdesk/tree/main/skills/agentdesk-api
+
+安装后创建本地 .env，只写 AGENTDESK_HOST 和 AGENTDESK_TOKEN；不要提交 .env。运行时 role 由你根据模型/任务传入 --role，不确定就询问开发者。
+```
+
+仓库内 skill 目录：
 
 ```text
 skills/agentdesk-api
 ```
 
-GitHub 推送后可直接把下面两个链接发给 AI：
-
-```text
-Skill 目录：
-https://github.com/fruktoguo/agentdesk/tree/main/skills/agentdesk-api
-
-Raw SKILL.md：
-https://raw.githubusercontent.com/fruktoguo/agentdesk/main/skills/agentdesk-api/SKILL.md
-```
-
-Codex 本地安装：
+本地手动安装示例：
 
 ```bash
 mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
