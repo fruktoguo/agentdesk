@@ -6,7 +6,7 @@ export function MemphisShapes({ className }: { className?: string }) {
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-0 overflow-hidden",
+        "pointer-events-none absolute inset-0 overflow-hidden dark:opacity-70",
         className,
       )}
     >

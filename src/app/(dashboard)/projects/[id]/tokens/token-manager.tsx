@@ -6,9 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Label, FieldError } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/feedback";
+import { Alert } from "@/components/ui/alert";
+import { CodeBlock } from "@/components/ui/code-block";
+import { DestructiveAction } from "@/components/ui/destructive-action";
 import type { ActionResult } from "@/lib/types";
 import type { ProjectToken } from "@/lib/db";
-import { formAction } from "@/lib/utils";
+
+const CURL_SAMPLE = `# 智能领取下一个任务（按优先级）
+curl -X POST HOST/api/agent/tasks/claim-next \\
+  -H "Authorization: Bearer <你的token>" \\
+  -H "X-Agent-Role: code-reviewer"
+
+# 创建任务
+curl -X POST HOST/api/agent/tasks \\
+  -H "Authorization: Bearer <你的token>" \\
+  -H "X-Agent-Role: code-reviewer" \\
+  -H "Content-Type: application/json" \\
+  -d '{"title":"审查登录模块"}'
+
+# 完成任务
+curl -X POST HOST/api/agent/tasks/<taskId>/complete \\
+  -H "Authorization: Bearer <你的token>" \\
+  -H "X-Agent-Role: code-reviewer"`;
 
 export function TokenManager({
   projectId,
@@ -38,19 +58,18 @@ export function TokenManager({
               <FieldError>{state.errors?.name?.[0]}</FieldError>
             </div>
             <Button type="submit" disabled={pending}>
+              {pending && <Spinner className="size-4 border-[3px]" />}
               {pending ? "生成中…" : "生成 Token"}
             </Button>
           </form>
 
           {newToken && (
-            <div className="mt-4 border-2 border-ink bg-grass p-4">
-              <p className="text-sm font-bold uppercase">
-                ⚠ 明文仅此一次，请立即复制保存：
-              </p>
-              <code className="mt-2 block break-all rounded-input border-2 border-ink bg-bg p-3 font-mono text-sm">
+            <Alert variant="warning" title="明文仅此一次" className="mt-4">
+              请立即复制保存，关闭后将无法再次查看：
+              <code className="mt-2 block break-all rounded-input border-2 border-ink bg-bg p-3 font-mono text-sm text-ink">
                 {newToken}
               </code>
-            </div>
+            </Alert>
           )}
         </CardBody>
       </Card>
@@ -88,19 +107,14 @@ export function TokenManager({
                     </p>
                   </div>
                   {!t.revokedAt && (
-                    <form
-                      action={formAction(
-                        revokeTokenAction.bind(null, projectId, t.id),
-                      )}
-                      onSubmit={(e) => {
-                        if (!confirm("吊销此 token？使用它的 AI 将立即失效。"))
-                          e.preventDefault();
-                      }}
-                    >
-                      <Button type="submit" variant="danger" size="sm">
-                        吊销
-                      </Button>
-                    </form>
+                    <DestructiveAction
+                      label="吊销"
+                      title="吊销此 token？"
+                      description="使用它的 AI 将立即失效，不可恢复。"
+                      confirmLabel="确认吊销"
+                      buttonVariant="danger"
+                      action={revokeTokenAction.bind(null, projectId, t.id)}
+                    />
                   )}
                 </div>
               ))}
@@ -124,24 +138,7 @@ export function TokenManager({
             <code className="rounded border-2 border-ink bg-paper px-1">HOST</code>{" "}
             换成你的域名）：
           </p>
-          <pre className="overflow-x-auto rounded-input border-2 border-ink bg-ink p-4 text-xs text-surface">
-            <code>{`# 智能领取下一个任务（按优先级）
-curl -X POST HOST/api/agent/tasks/claim-next \\
-  -H "Authorization: Bearer <你的token>" \\
-  -H "X-Agent-Role: code-reviewer"
-
-# 创建任务
-curl -X POST HOST/api/agent/tasks \\
-  -H "Authorization: Bearer <你的token>" \\
-  -H "X-Agent-Role: code-reviewer" \\
-  -H "Content-Type: application/json" \\
-  -d '{"title":"审查登录模块"}'
-
-# 完成任务
-curl -X POST HOST/api/agent/tasks/<taskId>/complete \\
-  -H "Authorization: Bearer <你的token>" \\
-  -H "X-Agent-Role: code-reviewer"`}</code>
-          </pre>
+          <CodeBlock code={CURL_SAMPLE} />
           <p className="mt-3 text-xs text-muted">
             角色名自定义，会显示在看板的领取者上。token 失效后需重新生成。
           </p>

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
 import { Card } from "@/components/ui/card";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Icon } from "@/components/ui/icon";
 import { EmptyState } from "@/components/ui/feedback";
 import { SectionTitle } from "@/components/ui/layout";
 import { NewProjectForm } from "./new-project-form";
@@ -34,11 +36,15 @@ export default async function ProjectsPage() {
         />
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p) => {
+          {projects.map((p, i) => {
             const isOwner = p.ownerId === user.id;
             return (
               <Link key={p.id} href={`/projects/${p.id}`} className="block">
-                <Card hover className="h-full overflow-hidden">
+                <Card
+                  hover
+                  className="h-full overflow-hidden enter-up"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                >
                   <div className="border-b-2 border-ink bg-surface p-4">
                     <h3 className="heading truncate text-lg">{p.name}</h3>
                   </div>
@@ -46,13 +52,24 @@ export default async function ProjectsPage() {
                     <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium text-muted">
                       {p.description || "暂无描述"}
                     </p>
-                    <div className="mt-4 flex items-center justify-between">
+                    <div className="mt-4 flex items-center justify-between gap-2">
                       <Badge color={isOwner ? "accent" : "muted"}>
                         {isOwner ? "拥有者" : `@${p.owner.name}`}
                       </Badge>
-                      <span className="text-xs font-bold uppercase text-muted">
-                        {p._count.tasks} 任务 · {p._count.issues} 问题
-                      </span>
+                      <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs font-bold uppercase">
+                        <span className="text-muted">{p._count.tasks} 任务</span>
+                        {p._count.issues > 0 ? (
+                          <Badge color="sun">
+                            <Icon icon={AlertTriangle} size={12} />
+                            {p._count.issues} 待解决
+                          </Badge>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-grass">
+                            <Icon icon={CheckCircle2} size={12} />
+                            无问题
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Card>

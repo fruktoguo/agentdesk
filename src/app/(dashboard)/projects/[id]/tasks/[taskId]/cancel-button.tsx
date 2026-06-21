@@ -1,8 +1,5 @@
-"use client";
-
 import { cancelTaskAction } from "@/app/actions/tasks";
-import { Button } from "@/components/ui/button";
-import { formAction } from "@/lib/utils";
+import { DestructiveAction } from "@/components/ui/destructive-action";
 
 export function CancelButton({
   projectId,
@@ -12,16 +9,13 @@ export function CancelButton({
   taskId: string;
 }) {
   return (
-    <form
-      action={formAction(cancelTaskAction.bind(null, projectId, taskId))}
-      onSubmit={(e) => {
-        if (!confirm("取消此任务？取消后可在事件时间线看到记录。"))
-          e.preventDefault();
-      }}
-    >
-      <Button type="submit" variant="danger" size="sm">
-        取消任务
-      </Button>
-    </form>
+    <DestructiveAction
+      label="取消任务"
+      title="取消此任务？"
+      description="取消后可在事件时间线看到记录。"
+      confirmLabel="确认取消"
+      buttonVariant="danger"
+      action={cancelTaskAction.bind(null, projectId, taskId)}
+    />
   );
 }

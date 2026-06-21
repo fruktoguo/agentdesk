@@ -1,8 +1,10 @@
+import { Bot, User } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { IssueStatus } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/feedback";
+import { Icon } from "@/components/ui/icon";
 import { IssueForm } from "./issue-form";
 import { IssueActions } from "./issue-actions";
 import type { Issue } from "@/lib/db";
@@ -28,9 +30,7 @@ function IssueCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge color={sev.color}>{sev.label}</Badge>
-            {issue.convertedTaskId && (
-              <Badge color="blue">已转任务</Badge>
-            )}
+            {issue.convertedTaskId && <Badge color="blue">已转任务</Badge>}
             {issue.resolvedByRole && <Badge color="grass">已解决</Badge>}
           </div>
           <h3 className="mt-2 font-bold">{issue.title}</h3>
@@ -39,8 +39,19 @@ function IssueCard({
               {issue.description}
             </p>
           )}
-          <p className="mt-2 text-xs text-muted">
-            {issue.createdByRole ? `🤖 ${issue.createdByRole}` : "👤 人工"} ·{" "}
+          <p className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted">
+            {issue.createdByRole ? (
+              <>
+                <Icon icon={Bot} size={12} />
+                {issue.createdByRole}
+              </>
+            ) : (
+              <>
+                <Icon icon={User} size={12} />
+                人工
+              </>
+            )}
+            <span aria-hidden>·</span>
             {new Date(issue.createdAt).toLocaleString("zh-CN")}
           </p>
         </div>
@@ -87,8 +98,14 @@ export default async function IssuesPage({
         />
       ) : (
         <div className="grid gap-3">
-          {openIssues.map((i) => (
-            <IssueCard key={i.id} issue={i} projectId={id} />
+          {openIssues.map((i, idx) => (
+            <div
+              key={i.id}
+              className="enter-up"
+              style={{ animationDelay: `${idx * 40}ms` }}
+            >
+              <IssueCard issue={i} projectId={id} />
+            </div>
           ))}
         </div>
       )}
@@ -97,8 +114,14 @@ export default async function IssuesPage({
         <div>
           <h3 className="heading mb-3 text-lg text-muted">已解决</h3>
           <div className="grid gap-3">
-            {resolvedIssues.map((i) => (
-              <IssueCard key={i.id} issue={i} projectId={id} />
+            {resolvedIssues.map((i, idx) => (
+              <div
+                key={i.id}
+                className="enter-up"
+                style={{ animationDelay: `${idx * 40}ms` }}
+              >
+                <IssueCard issue={i} projectId={id} />
+              </div>
             ))}
           </div>
         </div>

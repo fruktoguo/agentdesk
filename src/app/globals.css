@@ -1,13 +1,18 @@
 @import "tailwindcss";
 
+/* 手动暗色模式：在 <html> 上切换 .dark（配合防闪烁脚本，见 layout.tsx） */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ───────────────────────── 孟菲斯设计 token ───────────────────────── */
 @theme {
-  /* 糖果撞色 */
+  /* 中性 */
   --color-bg: #ffffff;
-  --color-ink: #000000; /* 纯黑：文字 + 描边 */
+  --color-ink: #000000; /* 亮色：文字 + 描边 */
+  --color-line: #000000; /* 描边语义 token —— 暗色下反转为亮边 */
   --color-muted: #4a4a4a;
   --color-paper: #fffdf5; /* 微暖底 */
 
+  /* 糖果撞色 */
   --color-surface: #ffeb3b; /* 柠檬明黄 */
   --color-sky: #2196f3; /* 天空蓝 */
   --color-accent: #e91e63; /* 枚红 */
@@ -16,6 +21,7 @@
   --color-sun: #ff9f43; /* 橙 — 待修复 */
   --color-grape: #9c27b0; /* 紫 */
   --color-rose: #ff5a7a;
+  --color-on-bright: #0b0b0b; /* 亮撞色块上的文字/描边：亮暗都保持深色 */
 
   /* 硬实体投影（无羽化） */
   --shadow-hard-sm: 2px 2px 0px 0px #000000;
@@ -27,15 +33,59 @@
   --radius-card: 16px;
   --radius-btn: 10px;
   --radius-input: 10px;
+
+  /* 动效 token —— 孟菲斯俏皮回弹 */
+  --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 0.12s;
+  --dur-base: 0.2s;
 }
 
 @theme inline {
   --font-display: var(--font-space-grotesk);
 }
 
+/* ───────────────────────── 暗色模式 token 覆盖 ───────────────────────── */
+/* .dark 挂在 <html> 上，覆盖 @theme 在 :root 输出的同名变量。
+   工具类（bg-ink / text-muted / border-2 等）都引用 var()，故自动跟随主题，
+   无需逐个组件写 dark: 变体。撞色在暗底下微调亮度以保对比度。 */
+.dark {
+  --color-bg: #15131a; /* 深炭紫，带暖意 */
+  --color-ink: #f5f1e8; /* 文字反转暖白 */
+  --color-line: #f5f1e8; /* 描边反转亮边 */
+  --color-muted: #a8a39a; /* 次要文字提到 ≥3:1 */
+  --color-paper: #1e1b24; /* 卡片底，比 bg 亮一档 */
+
+  --color-surface: #ffe14d;
+  --color-sky: #4a9be0; /* 稍深，保白字对比不退化 */
+  --color-accent: #ec2d6e; /* 不过度提亮，保枚红底白字对比 */
+  --color-accent-hover: #d92660;
+  --color-grass: #45e892;
+  --color-sun: #ffab5c;
+  --color-grape: #a04bb8;
+  --color-rose: #ff7088;
+}
+
+/* 暗色模式：撞色块本身是亮底，需强制深色描边；黄/橙/绿块还要强制深色文字，
+   否则 ink 反转成白后会出现“亮黄底白字”不可读。枚红/蓝/紫块保持白字（text-white）。 */
+.dark .bg-surface,
+.dark .bg-sun,
+.dark .bg-grass,
+.dark .bg-accent,
+.dark .bg-sky,
+.dark .bg-grape,
+.dark .bg-rose {
+  border-color: var(--color-on-bright);
+}
+.dark .bg-surface,
+.dark .bg-sun,
+.dark .bg-grass {
+  color: var(--color-on-bright);
+}
+
 /* ───────────────────────── 全局基础 ───────────────────────── */
 * {
-  border-color: var(--color-ink);
+  border-color: var(--color-line); /* 描边随主题反转 */
 }
 
 html {
@@ -63,11 +113,42 @@ body {
   line-height: 1;
 }
 
+/* ───────────────────────── 可访问性 ───────────────────────── */
+
+/* 键盘焦点轮廓（孟菲斯风格：粗实线 + accent 色 + 偏移）。
+   对所有可交互元素生效；表单控件如自带 outline-none 在组件层另行提供 ring。 */
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* 键盘跳转主内容：视觉隐藏直到聚焦 */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  transform: translateY(-150%);
+  padding: 0.6rem 1.25rem;
+  background: var(--color-ink);
+  color: var(--color-bg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border: 2px solid var(--color-line);
+  box-shadow: var(--shadow-hard);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 /* ───────────────────────── 孟菲斯纹理与图案 ───────────────────────── */
 
 /* 黑色点状纹理（标志性） */
 .bg-dots {
-  background-image: radial-gradient(#000000 1.6px, transparent 1.7px);
+  background-image: radial-gradient(var(--color-line) 1.6px, transparent 1.7px);
   background-size: 20px 20px;
 }
 
@@ -81,8 +162,8 @@ body {
 .bg-stripes {
   background-image: repeating-linear-gradient(
     45deg,
-    #000 0,
-    #000 2px,
+    var(--color-line) 0,
+    var(--color-line) 2px,
     transparent 2px,
     transparent 10px
   );
@@ -93,8 +174,8 @@ body {
 /* 按压：hover 微抬升加大投影，active 下压缩小投影 */
 .pressable {
   transition:
-    transform 0.12s ease,
-    box-shadow 0.12s ease;
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 .pressable:hover {
   transform: translate(-2px, -2px);
@@ -114,8 +195,8 @@ body {
 /* 卡片悬浮 */
 .card-hover {
   transition:
-    transform 0.14s ease,
-    box-shadow 0.14s ease;
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 .card-hover:hover {
   transform: translate(-3px, -3px);
@@ -159,6 +240,50 @@ body {
   }
 }
 
+/* 列表项 / 卡片进入：stagger 由内联 animation-delay 驱动 */
+.enter-up {
+  animation: enter-up var(--dur-base) var(--ease-out) both;
+}
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 警示徽章脉冲：吸引注意但不刺眼（reduced-motion 下自动静止） */
+.pulse-alert {
+  animation: pulse-alert 2s ease-in-out infinite;
+}
+@keyframes pulse-alert {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+/* toast 滑入 */
+.toast-in {
+  animation: toast-in var(--dur-base) var(--ease-snap) both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* 滚动条 */
 ::-webkit-scrollbar {
   width: 12px;
@@ -171,4 +296,18 @@ body {
   background: var(--color-ink);
   border: 3px solid var(--color-paper);
   border-radius: 0;
+}
+
+/* ───────────────────────── reduced-motion 降级 ───────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

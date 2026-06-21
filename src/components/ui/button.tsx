@@ -38,7 +38,8 @@ export interface ButtonProps
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", asChild, children, ...props }, ref) => {
     const cls = cn(
-      "inline-flex items-center justify-center gap-2 rounded-btn border-2 border-ink font-bold uppercase tracking-tight shadow-hard pressable select-none",
+      // 移动端（<640px）所有按钮强制 ≥44×44px 触摸目标
+      "inline-flex items-center justify-center gap-2 rounded-btn border-2 border-ink font-bold uppercase tracking-tight shadow-hard pressable select-none max-sm:min-h-11 max-sm:min-w-11",
       variants[variant],
       sizes[size],
       className,

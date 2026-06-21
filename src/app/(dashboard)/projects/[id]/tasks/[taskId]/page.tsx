@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft, Bot, User } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { TaskStatus } from "@/lib/db";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Timeline } from "@/components/timeline";
+import { Icon } from "@/components/ui/icon";
 import { CommentForm } from "./comment-form";
 import { CancelButton } from "./cancel-button";
 
@@ -16,7 +18,7 @@ const PRIO_LABEL: Record<string, string> = {
   LOW: "低",
 };
 
-function Meta({ label, value }: { label: string; value: string }) {
+function Meta({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <p className="text-xs font-bold uppercase text-muted">{label}</p>
@@ -53,9 +55,10 @@ export default async function TaskDetailPage({
     <div className="space-y-5">
       <Link
         href={`/projects/${id}/tasks`}
-        className="text-sm font-bold uppercase text-muted hover:text-ink"
+        className="inline-flex items-center gap-1.5 text-sm font-bold uppercase text-muted transition hover:text-ink"
       >
-        ← 返回任务列表
+        <Icon icon={ArrowLeft} size={16} />
+        返回任务列表
       </Link>
 
       <Card>
@@ -79,7 +82,16 @@ export default async function TaskDetailPage({
           <div className="grid grid-cols-2 gap-3 border-t-2 border-paper pt-3 text-sm sm:grid-cols-4">
             <Meta
               label="领取者"
-              value={task.claimedByRole ? `🤖 ${task.claimedByRole}` : "—"}
+              value={
+                task.claimedByRole ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Icon icon={Bot} size={14} />
+                    {task.claimedByRole}
+                  </span>
+                ) : (
+                  "—"
+                )
+              }
             />
             <Meta
               label="来源"
@@ -128,9 +140,13 @@ export default async function TaskDetailPage({
                   key={c.id}
                   className="border-b-2 border-paper pb-3 last:border-0 last:pb-0"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge color={c.authorType === "agent" ? "blue" : "accent"}>
-                      {c.authorType === "agent" ? "🤖" : "👤"} {c.authorRole}
+                      <Icon
+                        icon={c.authorType === "agent" ? Bot : User}
+                        size={12}
+                      />
+                      {c.authorRole}
                     </Badge>
                     <span className="text-xs text-muted">
                       {new Date(c.createdAt).toLocaleString("zh-CN")}

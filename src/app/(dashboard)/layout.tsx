@@ -12,8 +12,14 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-paper">
+      <a href="#main" className="skip-link">
+        跳到主要内容
+      </a>
       <Navbar user={user} />
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <main
+        id="main"
+        className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8"
+      >
         {children}
       </main>
     </div>

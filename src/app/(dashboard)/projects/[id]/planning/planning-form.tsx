@@ -5,6 +5,8 @@ import { updatePlanningAction } from "@/app/actions/planning";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Textarea, FieldError } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/feedback";
+import { Alert } from "@/components/ui/alert";
 import type { ActionResult } from "@/lib/types";
 
 export function PlanningForm({
@@ -40,15 +42,10 @@ export function PlanningForm({
               className="font-mono text-sm"
             />
             <FieldError>{state.errors?.planning?.[0]}</FieldError>
-            {state.ok && (
-              <p className="border-2 border-ink bg-grass px-3 py-1.5 text-sm font-bold">
-                ✓ 已保存
-              </p>
-            )}
-            {state.error && (
-              <p className="text-sm font-bold text-accent">{state.error}</p>
-            )}
+            {state.ok && <Alert variant="success">已保存</Alert>}
+            {state.error && <Alert variant="error">{state.error}</Alert>}
             <Button type="submit" size="sm" disabled={pending}>
+              {pending && <Spinner className="size-4 border-[3px]" />}
               {pending ? "保存中…" : "保存规划"}
             </Button>
           </form>

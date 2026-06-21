@@ -1,4 +1,6 @@
+import { Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Icon } from "@/components/ui/icon";
 
 const TYPE_COLOR: Record<string, string> = {
   task_created: "bg-sky",
@@ -50,15 +52,14 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-sm font-bold">
-                  {e.summary ?? e.type}
-                </p>
+                <p className="text-sm font-bold">{e.summary ?? e.type}</p>
                 <span className="shrink-0 text-xs text-muted">
                   {new Date(e.createdAt).toLocaleString("zh-CN")}
                 </span>
               </div>
-              <p className="text-xs text-muted">
-                {e.actorType === "agent" ? "🤖" : "👤"} {e.actorRole ?? "未知"}
+              <p className="flex items-center gap-1 text-xs text-muted">
+                <Icon icon={e.actorType === "agent" ? Bot : User} size={12} />
+                {e.actorRole ?? "未知"}
               </p>
             </div>
           </li>

@@ -1,25 +1,42 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { createProjectAction } from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea, FieldError } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/feedback";
+import { Alert } from "@/components/ui/alert";
+import { Icon } from "@/components/ui/icon";
 import type { ActionResult } from "@/lib/types";
 
 export function NewProjectForm() {
   const [open, setOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createProjectAction, {
     ok: false,
   } as ActionResult);
 
+  useEffect(() => {
+    if (state.ok) {
+      setOpen(false);
+      formRef.current?.reset();
+    }
+  }, [state]);
+
   if (!open) {
-    return <Button onClick={() => setOpen(true)}>＋ 新建项目</Button>;
+    return (
+      <Button onClick={() => setOpen(true)}>
+        <Icon icon={Plus} size={16} />
+        新建项目
+      </Button>
+    );
   }
 
   return (
     <Card className="p-4">
-      <form action={action} className="space-y-3">
+      <form ref={formRef} action={action} className="space-y-3">
         <div>
           <Label htmlFor="pname">项目名称</Label>
           <Input
@@ -39,11 +56,10 @@ export function NewProjectForm() {
             placeholder="这个项目用来做什么"
           />
         </div>
-        {state.error && (
-          <p className="text-sm font-bold text-accent">{state.error}</p>
-        )}
+        {state.error && <Alert variant="error">{state.error}</Alert>}
         <div className="flex gap-2">
           <Button type="submit" size="sm" disabled={pending}>
+            {pending && <Spinner className="size-4 border-[3px]" />}
             {pending ? "创建中…" : "创建项目"}
           </Button>
           <Button

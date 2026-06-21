@@ -1,26 +1,44 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { createIssueAction } from "@/app/actions/issues";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea, FieldError } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/feedback";
+import { Alert } from "@/components/ui/alert";
+import { Icon } from "@/components/ui/icon";
 import type { ActionResult } from "@/lib/types";
 
 export function IssueForm({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(
     createIssueAction.bind(null, projectId),
     { ok: false } as ActionResult,
   );
 
+  useEffect(() => {
+    if (state.ok) {
+      setOpen(false);
+      formRef.current?.reset();
+    }
+  }, [state]);
+
   if (!open) {
-    return <Button onClick={() => setOpen(true)}>＋ 记录问题</Button>;
+    return (
+      <Button onClick={() => setOpen(true)}>
+        <Icon icon={Plus} size={16} />
+        记录问题
+      </Button>
+    );
   }
 
   return (
     <Card className="p-4">
-      <form action={action} className="space-y-3">
+      <form ref={formRef} action={action} className="space-y-3">
         <div>
           <Label htmlFor="ititle">标题</Label>
           <Input id="ititle" name="title" placeholder="问题描述" autoFocus />
@@ -32,23 +50,17 @@ export function IssueForm({ projectId }: { projectId: string }) {
         </div>
         <div>
           <Label htmlFor="isev">严重程度</Label>
-          <select
-            id="isev"
-            name="severity"
-            defaultValue=""
-            className="w-full rounded-input border-2 border-ink bg-bg px-3 py-2.5 text-sm font-bold shadow-hard-sm outline-none"
-          >
+          <Select id="isev" name="severity" defaultValue="">
             <option value="">中等（默认）</option>
             <option value="LOW">低</option>
             <option value="HIGH">高</option>
             <option value="URGENT">紧急</option>
-          </select>
+          </Select>
         </div>
-        {state.error && (
-          <p className="text-sm font-bold text-accent">{state.error}</p>
-        )}
+        {state.error && <Alert variant="error">{state.error}</Alert>}
         <div className="flex gap-2">
           <Button type="submit" size="sm" disabled={pending}>
+            {pending && <Spinner className="size-4 border-[3px]" />}
             {pending ? "记录中…" : "记录问题"}
           </Button>
           <Button

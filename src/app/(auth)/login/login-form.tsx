@@ -5,6 +5,7 @@ import { loginAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input, Label, FieldError } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/feedback";
+import { Alert } from "@/components/ui/alert";
 import type { ActionResult } from "@/lib/types";
 
 export function LoginForm() {
@@ -29,11 +30,7 @@ export function LoginForm() {
         />
         <FieldError>{state.errors?.password?.[0]}</FieldError>
       </div>
-      {state.error && (
-        <p className="border-2 border-ink bg-accent px-3 py-2 text-sm font-bold text-white">
-          {state.error}
-        </p>
-      )}
+      {state.error && <Alert variant="error">{state.error}</Alert>}
       <Button type="submit" size="lg" disabled={pending} className="w-full">
         {pending ? (
           <>

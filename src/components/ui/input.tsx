@@ -8,7 +8,7 @@ export const Input = forwardRef<
   <input
     ref={ref}
     className={cn(
-      "w-full rounded-input border-2 border-ink bg-bg px-4 py-2.5 text-sm font-semibold shadow-hard-sm outline-none transition placeholder:font-medium placeholder:text-muted/50",
+      "w-full rounded-input border-2 border-ink bg-bg px-4 py-2.5 text-sm font-semibold shadow-hard-sm transition placeholder:font-medium placeholder:text-muted/50",
       "focus:-translate-x-px focus:-translate-y-px focus:shadow-hard",
       className,
     )}
@@ -24,7 +24,7 @@ export const Textarea = forwardRef<
   <textarea
     ref={ref}
     className={cn(
-      "w-full rounded-input border-2 border-ink bg-bg px-4 py-2.5 text-sm font-medium shadow-hard-sm outline-none transition placeholder:text-muted/50",
+      "w-full rounded-input border-2 border-ink bg-bg px-4 py-2.5 text-sm font-medium shadow-hard-sm transition placeholder:text-muted/50",
       "focus:-translate-x-px focus:-translate-y-px focus:shadow-hard",
       className,
     )}
@@ -48,9 +48,12 @@ export function Label({
   );
 }
 
+/** 字段级错误：role=alert 让屏幕阅读器即时播报 */
 export function FieldError({ children }: { children?: React.ReactNode }) {
   if (!children) return null;
   return (
-    <p className="mt-1.5 text-xs font-bold uppercase text-accent">{children}</p>
+    <p role="alert" className="mt-1.5 text-xs font-bold uppercase text-accent">
+      {children}
+    </p>
   );
 }
